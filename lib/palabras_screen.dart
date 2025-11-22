@@ -39,7 +39,8 @@ class _PalabrasScreenState extends State<PalabrasScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(mensaje, style: TextStyle(color: Colors.white)),
-        backgroundColor: color,
+        backgroundColor: Colors.deepPurpleAccent,
+        duration: const Duration(milliseconds: 1500), // Muestra el SnackBar por 1.5 segundos
       ),
     );
   }

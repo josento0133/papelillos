@@ -24,12 +24,15 @@ class NombresJugadoresScreen extends StatefulWidget {
 }
 
 class _NombresJugadoresScreenState extends State<NombresJugadoresScreen> {
+  late int _numeroJugadores;
   final List<String> _nombres = [];
   final TextEditingController _nombreController = TextEditingController();
   final List<List<String>> _palabrasPorJugador = [];
 
+
   // Definición del color azul principal para consistencia
   final Color primaryBlue = Colors.blue;
+
 
   void _agregarNombre() {
     String nuevoNombre = _nombreController.text.trim();
@@ -130,17 +133,24 @@ class _NombresJugadoresScreenState extends State<NombresJugadoresScreen> {
   }
 
   // Helper para mostrar SnackBars
-  void _mostrarSnackBar(String mensaje) {
+  void _mostrarSnackBar(String mensaje, {Color color = Colors.black}) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensaje)),
+      SnackBar(
+        content: Text(mensaje, style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.deepPurpleAccent,
+        duration: const Duration(milliseconds: 1500), // Muestra el SnackBar por 1.5 segundos
+      ),
     );
   }
+
+
 
   @override
   void dispose() {
     _nombreController.dispose();
     super.dispose();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -214,20 +224,21 @@ class _NombresJugadoresScreenState extends State<NombresJugadoresScreen> {
                   return ListTile(
                     leading: Icon(Icons.person, color: primaryBlue),
                     title: Text(nombre, style: TextStyle(fontSize: 20)),
-                    subtitle: widget.modoTodasPalabrasAleatorias
-                        ? Text('Palabras se cargarán automáticamente', style: TextStyle(color: Colors.grey[600]))
-                        : Text(
+                    subtitle: Text(
+                      // Si es FALSE (modo manual/mixto), muestra el progreso real.
                       'Palabras añadidas: ${_palabrasPorJugador[index].length} / ${widget.palabrasPorJugador}',
+
                       style: TextStyle(
-                        color: palabrasCompletas ? Colors.green : Colors.red,
+                        // La lógica de color solo aplica si NO es el modo aleatorio total (para evitar errores en la condición de abajo).
                         fontWeight: FontWeight.bold,
+                        // --- LÓGICA DE COLOR SIMPLIFICADA (Ignora el modo automático) ---
+                        color: palabrasCompletas ? Colors.green : Colors.red,
                       ),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // Botón Añadir/Ver Palabras (solo si el modo no es totalmente aleatorio)
-                        if (!widget.modoTodasPalabrasAleatorias)
                           ElevatedButton(
                             onPressed: palabrasCompletas
                                 ? null // Deshabilitado si ya están completas
