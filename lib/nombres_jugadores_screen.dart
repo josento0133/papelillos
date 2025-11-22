@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'palabras_screen.dart';
 import 'equipos_screen.dart';
-import 'dart:convert'; // Para el manejo de JSON
-import 'package:http/http.dart' as http; // Paquete para hacer solicitudes HTTP
 
 class NombresJugadoresScreen extends StatefulWidget {
-  final bool modoAleatorio; // Parámetro para el modo de juego
-  final bool modoTodasPalabrasAleatorias; // Parámetro para el modo de palabras aleatorias
+  final bool modoAleatorio;
+  final bool modoTodasPalabrasAleatorias;
   final int numeroJugadores;
   final int palabrasPorJugador;
   final List<String> palabras;
@@ -15,7 +13,7 @@ class NombresJugadoresScreen extends StatefulWidget {
   NombresJugadoresScreen({
     required this.numeroJugadores,
     required this.modoAleatorio,
-    required this.modoTodasPalabrasAleatorias, // Agregado
+    required this.modoTodasPalabrasAleatorias,
     required this.palabrasPorJugador,
     required this.palabras,
     required this.tiempoPorRonda,
@@ -30,25 +28,22 @@ class _NombresJugadoresScreenState extends State<NombresJugadoresScreen> {
   final TextEditingController _nombreController = TextEditingController();
   final List<List<String>> _palabrasPorJugador = [];
 
+  // Definición del color azul principal para consistencia
+  final Color primaryBlue = Colors.blue;
+
   void _agregarNombre() {
     String nuevoNombre = _nombreController.text.trim();
 
     if (nuevoNombre.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Por favor, ingresa un nombre.')),
-      );
+      _mostrarSnackBar('Por favor, ingresa un nombre.');
       return;
     }
     if (_nombres.contains(nuevoNombre)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Este nombre ya ha sido ingresado.')),
-      );
+      _mostrarSnackBar('Este nombre ya ha sido ingresado.');
       return;
     }
     if (_nombres.length >= widget.numeroJugadores) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ya has ingresado el número máximo de jugadores.')),
-      );
+      _mostrarSnackBar('Ya has ingresado el número máximo de jugadores (${widget.numeroJugadores}).');
       return;
     }
 
@@ -74,9 +69,8 @@ class _NombresJugadoresScreenState extends State<NombresJugadoresScreen> {
           nombre: nombreJugador,
           palabras: widget.palabras,
           palabrasPorJugador: widget.palabrasPorJugador,
-          modoAleatorio: widget.modoAleatorio, // Pasar el modo aleatorio
-          modoTodasPalabrasAleatorias: widget.modoTodasPalabrasAleatorias, // Pásalo correctamente
-
+          modoAleatorio: widget.modoAleatorio,
+          modoTodasPalabrasAleatorias: widget.modoTodasPalabrasAleatorias,
         ),
       ),
     );
@@ -89,36 +83,16 @@ class _NombresJugadoresScreenState extends State<NombresJugadoresScreen> {
   }
 
   // Método para obtener una palabra aleatoria de la API
-  Future<String?> _obtenerPalabraAleatoria() async {
-    try {
-      final response = await http.get(Uri.parse('https://api.example.com/palabras'));
-      if (response.statusCode == 200) {
-        // Aquí debes ajustar según la estructura de tu respuesta JSON
-        final data = json.decode(response.body);
-        return data['palabra']; // Ajusta según el campo correcto
-      } else {
-        throw Exception('Error al obtener palabra aleatoria');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al obtener palabra aleatoria.')),
-      );
-      return null;
-    }
-  }
 
-  void _agregarPalabraAleatoria(int index) async {
-    String? palabra = await _obtenerPalabraAleatoria();
-    if (palabra != null) {
-      setState(() {
-        _palabrasPorJugador[index].add(palabra);
-      });
-    }
-  }
+
+  // Función para agregar palabra aleatoria (solo si el modo lo requiere)
+
 
   bool _puedeContinuar() {
-    return _nombres.length == widget.numeroJugadores &&
+    bool todosJugadores = _nombres.length == widget.numeroJugadores;
+    bool todasLasPalabrasLlenas = widget.modoTodasPalabrasAleatorias ||
         _palabrasPorJugador.every((palabras) => palabras.length == widget.palabrasPorJugador);
+    return todosJugadores && todasLasPalabrasLlenas;
   }
 
   void _continuarEquipos() {
@@ -140,34 +114,61 @@ class _NombresJugadoresScreenState extends State<NombresJugadoresScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Confirmación'),
-        content: Text('¿Estás seguro de que deseas volver atrás?'),
+        content: Text('¿Estás seguro de que deseas volver atrás? Perderás el progreso de nombres.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true), // Confirmar
-            child: Text('Sí'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Sí', style: TextStyle(color: primaryBlue)),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false), // Cancelar
-            child: Text('No'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('No', style: TextStyle(color: primaryBlue)),
           ),
         ],
       ),
-    )) ?? false; // Devuelve false si el diálogo se cierra sin seleccionar
+    )) ?? false;
+  }
+
+  // Helper para mostrar SnackBars
+  void _mostrarSnackBar(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje)),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    int maxJugadores = widget.numeroJugadores;
+    int jugadoresIngresados = _nombres.length;
+
     return WillPopScope(
-      onWillPop: _mostrarDialogoConfirmacion, // Mostrar el diálogo de confirmación
+      onWillPop: _mostrarDialogoConfirmacion,
       child: Scaffold(
         appBar: AppBar(
           title: Text('Nombres de los Jugadores'),
-          automaticallyImplyLeading: false, // Esto oculta la flecha de retroceso
+          automaticallyImplyLeading: false,
+          backgroundColor: primaryBlue,
+          bottom: PreferredSize(
+            preferredSize: Size.fromHeight(30.0),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Text(
+                'Progreso: $jugadoresIngresados / $maxJugadores',
+                style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
         ),
         body: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
                   Expanded(
@@ -175,18 +176,29 @@ class _NombresJugadoresScreenState extends State<NombresJugadoresScreen> {
                       controller: _nombreController,
                       decoration: InputDecoration(
                         labelText: 'Nombre del jugador',
-                        labelStyle: TextStyle(fontSize: 20, color:Colors.lightBlueAccent),
-                        contentPadding: EdgeInsets.symmetric(vertical: 16.0),
+                        labelStyle: TextStyle(fontSize: 20, color: primaryBlue),
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(color: primaryBlue),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: primaryBlue, width: 2.0),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(vertical: 16.0, horizontal: 10.0),
                       ),
                       style: TextStyle(fontSize: 20),
+                      onSubmitted: (_) => _agregarNombre(),
+                      enabled: jugadoresIngresados < maxJugadores,
                     ),
                   ),
                   SizedBox(width: 10),
                   ElevatedButton(
-                    onPressed: _agregarNombre,
-                    child: Text('Añadir', style: TextStyle(fontSize: 20, color:Colors.lightBlueAccent)),
+                    onPressed: jugadoresIngresados < maxJugadores ? _agregarNombre : null,
+                    child: Text('Añadir', style: TextStyle(fontSize: 20, color: Colors.white)),
                     style: ElevatedButton.styleFrom(
                       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      backgroundColor: primaryBlue,
+                      disabledBackgroundColor: Colors.grey,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                 ],
@@ -194,32 +206,47 @@ class _NombresJugadoresScreenState extends State<NombresJugadoresScreen> {
             ),
             Expanded(
               child: ListView.builder(
-                itemCount: _nombres.length,
+                itemCount: jugadoresIngresados,
                 itemBuilder: (context, index) {
                   String nombre = _nombres[index];
+                  bool palabrasCompletas = _palabrasPorJugador[index].length == widget.palabrasPorJugador;
 
                   return ListTile(
-                    title: Text(nombre, style: TextStyle(fontSize: 20, color:Colors.lightBlueAccent)),
+                    leading: Icon(Icons.person, color: primaryBlue),
+                    title: Text(nombre, style: TextStyle(fontSize: 20)),
+                    subtitle: widget.modoTodasPalabrasAleatorias
+                        ? Text('Palabras se cargarán automáticamente', style: TextStyle(color: Colors.grey[600]))
+                        : Text(
+                      'Palabras añadidas: ${_palabrasPorJugador[index].length} / ${widget.palabrasPorJugador}',
+                      style: TextStyle(
+                        color: palabrasCompletas ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          icon: Icon(Icons.delete, color: Colors.red, size: 30),
-                          onPressed: () => _borrarNombre(index),
-                        ),
-                         // Condicional para mostrar el botón solo si el modo no está activado
+                        // Botón Añadir/Ver Palabras (solo si el modo no es totalmente aleatorio)
+                        if (!widget.modoTodasPalabrasAleatorias)
                           ElevatedButton(
-                            onPressed: _palabrasPorJugador[index].isNotEmpty
-                                ? null
+                            onPressed: palabrasCompletas
+                                ? null // Deshabilitado si ya están completas
                                 : () => _irAPalabrasScreen(nombre, index),
                             child: Text(
-                              _palabrasPorJugador[index].isNotEmpty ? 'Palabras añadidas' : 'Añadir palabras',
-                              style: TextStyle(fontSize: 15, color:Colors.lightBlueAccent),
+                              palabrasCompletas ? 'Completado' : 'Añadir',
+                              style: TextStyle(fontSize: 16, color: Colors.white),
                             ),
                             style: ElevatedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              backgroundColor: palabrasCompletas ? Colors.green : primaryBlue,
+                              disabledBackgroundColor: Colors.green[700],
                             ),
                           ),
+                        SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(Icons.delete, color: Colors.red, size: 28),
+                          onPressed: () => _borrarNombre(index),
+                        ),
                       ],
                     ),
                   );
@@ -228,15 +255,21 @@ class _NombresJugadoresScreenState extends State<NombresJugadoresScreen> {
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: ElevatedButton(
-                onPressed: _puedeContinuar() ? _continuarEquipos : null,
-                child: Text('Continuar', style: TextStyle(fontSize: 30, color:Colors.lightBlueAccent)),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _puedeContinuar() ? _continuarEquipos : null,
+                  child: Text('Continuar', style: TextStyle(fontSize: 24, color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                    backgroundColor: primaryBlue,
+                    disabledBackgroundColor: Colors.grey,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
               ),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 10),
           ],
         ),
       ),

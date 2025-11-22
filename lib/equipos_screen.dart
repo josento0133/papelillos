@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'juego_screen.dart'; // Asegúrate de importar tu pantalla de juego
+import 'juego_screen.dart';
 
 class EquiposScreen extends StatefulWidget {
   final List<String> nombresJugadores;
@@ -19,16 +19,19 @@ class EquiposScreen extends StatefulWidget {
 class _EquiposScreenState extends State<EquiposScreen> {
   List<List<String>> equipos = [];
 
+  // Variables para controlar el intercambio
+  int? _equipoSeleccionadoIndex;
+  int? _jugadorSeleccionadoIndex;
+
   @override
   void initState() {
     super.initState();
-    _formarEquipos(); // Llama a la función para formar los equipos al iniciar la pantalla
+    _formarEquiposIniciales();
   }
 
-  // Función para formar equipos aleatoriamente
-  void _formarEquipos() {
+  void _formarEquiposIniciales() {
     List<String> jugadores = List.from(widget.nombresJugadores);
-    jugadores.shuffle();
+    jugadores.shuffle(); // Mezclamos al principio, luego el usuario edita
 
     List<List<String>> nuevosEquipos = [];
     for (int i = 0; i < jugadores.length; i += 2) {
@@ -40,28 +43,47 @@ class _EquiposScreenState extends State<EquiposScreen> {
     });
   }
 
-  // Botón para re-aleatorizar los equipos
-  void _reAleatorizarEquipos() {
-    _formarEquipos();
+  // Lógica principal de intercambio
+  void _manejarToqueJugador(int equipoIdx, int jugadorIdx) {
+    setState(() {
+      // CASO 1: No hay nadie seleccionado, seleccionamos al primero
+      if (_equipoSeleccionadoIndex == null) {
+        _equipoSeleccionadoIndex = equipoIdx;
+        _jugadorSeleccionadoIndex = jugadorIdx;
+      }
+      // CASO 2: Toco al mismo jugador que ya estaba seleccionado (Deseleccionar)
+      else if (_equipoSeleccionadoIndex == equipoIdx && _jugadorSeleccionadoIndex == jugadorIdx) {
+        _limpiarSeleccion();
+      }
+      // CASO 3: Hay un jugador seleccionado y toco a otro distinto -> INTERCAMBIO
+      else {
+        String jugadorA = equipos[_equipoSeleccionadoIndex!][_jugadorSeleccionadoIndex!];
+        String jugadorB = equipos[equipoIdx][jugadorIdx];
+
+        // Realizamos el intercambio
+        equipos[_equipoSeleccionadoIndex!][_jugadorSeleccionadoIndex!] = jugadorB;
+        equipos[equipoIdx][jugadorIdx] = jugadorA;
+
+        _limpiarSeleccion();
+      }
+    });
   }
 
-  // Función para navegar a la pantalla de juego
+  void _limpiarSeleccion() {
+    _equipoSeleccionadoIndex = null;
+    _jugadorSeleccionadoIndex = null;
+  }
+
   void _iniciarJuego() {
-    if (widget.palabras.isEmpty) {
-      // Manejar el caso donde no hay palabras
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No hay palabras disponibles.')),
-      );
-      return;
-    }
-    print('Iniciando juego...'); // Verificar que se llame esta función
+    if (widget.palabras.isEmpty) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => JuegoScreen(
-          equipos: equipos, // Pasamos los equipos
-          palabras: widget.palabras, // Pasamos las palabras
-          tiempoPorRonda: widget.tiempoPorRonda, // Pasamos el tiempo por ronda
+          equipos: equipos,
+          palabras: widget.palabras,
+          tiempoPorRonda: widget.tiempoPorRonda,
         ),
       ),
     );
@@ -71,56 +93,82 @@ class _EquiposScreenState extends State<EquiposScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Equipos Aleatorios',
-          style: TextStyle(fontSize: 22), // Aumenta el tamaño del texto en la AppBar
-        ),
-        automaticallyImplyLeading: false, // Esto oculta la flecha de retroceso
+        title: Text('Editar Equipos', style: TextStyle(fontSize: 22)),
+        automaticallyImplyLeading: false,
       ),
       body: Column(
         children: [
-          SizedBox(height: 30),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              "Toca un nombre y luego otro para intercambiarlos",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+            ),
+          ),
           Expanded(
             child: ListView.builder(
               itemCount: equipos.length,
-              itemBuilder: (context, index) {
-                List<String> equipo = equipos[index];
-                return ListTile(
-                  title: Text(
-                    'Equipo ${index + 1}: ${equipo.join(' y ')}',
-                    style: TextStyle(fontSize: 23, color:Colors.blue,fontWeight: FontWeight.bold), // Aumenta el tamaño del texto de la lista
+              itemBuilder: (context, indexEquipo) {
+                return Card(
+                  margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  elevation: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Equipo ${indexEquipo + 1}", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                        SizedBox(height: 10),
+                        // Usamos Wrap o Row para mostrar los jugadores
+                        Wrap(
+                          spacing: 10.0,
+                          children: equipos[indexEquipo].asMap().entries.map((entry) {
+                            int indexJugador = entry.key;
+                            String nombre = entry.value;
+
+                            // Verificamos si este jugador específico está seleccionado
+                            bool esSeleccionado = _equipoSeleccionadoIndex == indexEquipo &&
+                                _jugadorSeleccionadoIndex == indexJugador;
+
+                            return ChoiceChip(
+                              label: Text(
+                                nombre,
+                                style: TextStyle(
+                                    fontSize: 20,
+                                    color: esSeleccionado ? Colors.white : Colors.black
+                                ),
+                              ),
+                              selected: esSeleccionado,
+                              selectedColor: Colors.orange, // Color cuando está seleccionado
+                              backgroundColor: Colors.grey[200], // Color normal
+                              onSelected: (_) {
+                                _manejarToqueJugador(indexEquipo, indexJugador);
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0), // Añade espacio entre los botones
-            child: ElevatedButton(
-              onPressed: _reAleatorizarEquipos,
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15), // Tamaño del botón
-                textStyle: TextStyle(fontSize: 25, color: Colors.white), // Tamaño y color del texto
-                backgroundColor: Colors.lightBlue, // Color azul
-              ),
-              child: Text('Re-aleatorizar equipos'),
-            ),
-          ),
+
           SizedBox(height: 20),
           Padding(
-            padding: const EdgeInsets.only(bottom: 16.0), // Añade espacio en la parte inferior
+            padding: const EdgeInsets.only(bottom: 30.0),
             child: ElevatedButton(
               onPressed: _iniciarJuego,
               style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15), // Tamaño del botón
-                textStyle: TextStyle(fontSize: 25, color: Colors.white), // Tamaño y color del texto
-                backgroundColor: Colors.lightGreen, // Color azul
+                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                textStyle: TextStyle(fontSize: 25, color: Colors.white),
+                backgroundColor: Colors.lightGreen,
               ),
-              child: Text('Iniciar Juego'),
+              child: Text('Iniciar Juego', style: TextStyle(color: Colors.white)),
             ),
           ),
-
-          SizedBox(height: 50),
         ],
       ),
     );

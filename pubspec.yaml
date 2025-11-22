@@ -32,6 +32,7 @@ dependencies:
     sdk: flutter
   audioplayers: ^6.1.0  # Revisa si hay una versión más actualizada
   http: ^1.2.2
+  html: ^0.15.0 # <-- Nueva dependencia
   xml: ^6.5.0  # Asegúrate de tener esta línea para manejar XML
   shared_preferences: ^2.0.0
   path_provider: ^2.1.2
